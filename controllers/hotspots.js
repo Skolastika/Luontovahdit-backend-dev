@@ -54,13 +54,6 @@ hotspotsRouter.delete('/:id', async (request, response) => {
 
 hotspotsRouter.patch('/:id', async (request, response) => {
   try {
-    /*
-    Tank.findByIdAndUpdate(id, { $set: { size: 'large' }}, { new: true }, function (err, tank) {
-      if (err) return handleError(err);
-      res.send(tank);
-    });*/
-
-
     const hotspot = await Hotspot.findById(request.params.id)
     const body = request.body
     if (hotspot) {
