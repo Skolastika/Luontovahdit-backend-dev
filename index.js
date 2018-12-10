@@ -7,7 +7,8 @@ const mongoose = require('mongoose')
 //const middleware = require('./utils/middleware')
 const config = require('./utils/config')
 const hotspotsRouter = require('./controllers/hotspots')
-//const commentsRouter = require('./controllers/comments')
+const commentsRouter = require('./controllers/comments')
+const usersRouter = require('./controllers/users')
 
 if ( process.env.NODE_ENV !== 'production' ) {
   require('dotenv').config()
@@ -25,7 +26,8 @@ mongoose
 app.use(cors())
 app.use(bodyParser.json())
 app.use('/api/hotspots', hotspotsRouter)
-//app.use('/api/comments', commentsRouter)
+app.use('/api/comments', commentsRouter)
+app.use('/api/users', usersRouter)
 
 const server = http.createServer(app)
 

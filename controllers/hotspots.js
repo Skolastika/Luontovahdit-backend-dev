@@ -12,6 +12,8 @@ hotspotsRouter.get('/', async (request, response) => {
   }
 })
 
+// implement get for narrowing down hotspots to fetch
+
 hotspotsRouter.post('/', async (request, response) => {
   try {
     // user token needs to be sent, extracted, and verified
@@ -74,9 +76,11 @@ hotspotsRouter.patch('/:id', async (request, response) => {
     }
   } catch (exception) {
     console.log(exception)
+    if (exception.kind === 'ObjectId') {
+      return response.status(400).json({ error: 'Malformed id.' })
+    }
     response.status(500).json({ error: 'Failed to update hotspot.' })
   }
 })
-
 
 module.exports = hotspotsRouter

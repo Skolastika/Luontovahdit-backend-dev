@@ -7,20 +7,21 @@ const commentSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    pictureUrl: {
+    /*pictureUrl: {
       type: String,
       'ajv-schema': {
         type: 'string',
         format: 'url'
       }
-    },
+    },*/
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
     inHotspot: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Hotspot'
+      ref: 'Hotspot',
+      required: true
     },
     upVotes: {
       type: Number,
