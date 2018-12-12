@@ -68,8 +68,9 @@ hotspotsRouter.patch('/:id', async (request, response) => {
       }
       hotspot.save((error, updatedHotspot) => {
         if (error) {
+          console.log(error)
           const paths = Object.keys(error.errors)
-          return response.status(400).json({ error: `Validation error: problem with ${paths.join(', ')}.` })
+          return response.status(400).json({ error: `Hotspot validation error: problem with ${paths.join(', ')}.` })
         }
         return response.status(200).json(updatedHotspot)
       })

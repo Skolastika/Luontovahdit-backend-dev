@@ -42,4 +42,28 @@ usersRouter.post('/', async (request, response) => {
   }
 })
 
+usersRouter.delete('/:id', async (request, response) => {
+  try {
+    const user = await User.findById(request.params.id)
+
+    // if user wasn't found, it's probably deleted already
+    if (!user) {
+      return response.status(204).end()
+    }
+
+    // TODO: What happens to user's hotspots and comments
+    //       when user is removed?
+
+    await user.remove()
+    response.status(204).end()
+
+  } catch (exception) {
+    console.log(exception)
+    if (exception.kind === 'ObjectId') {
+      return response.status(400).json({ error: 'Malformed id.' })
+    }
+    response.status(500).json({ error: 'Something went wrong while deleting user.' })
+  }
+})
+
 module.exports = usersRouter
