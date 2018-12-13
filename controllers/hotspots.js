@@ -1,5 +1,8 @@
 const hotspotsRouter = require('express').Router()
 const Hotspot = require('../models/hotspot')
+const validation = require('../utils/validation')
+
+const MAX_RADIUS = 500 // maximum/default distance in km for searching nearby hotspots
 
 hotspotsRouter.get('/', async (request, response) => {
   try{
@@ -12,7 +15,39 @@ hotspotsRouter.get('/', async (request, response) => {
   }
 })
 
-// implement get for narrowing down hotspots to fetch
+// GET nearby hotspots (requires 2dsphere index in collection)
+// parameters after @: longitude, latitude, radius (in kilometers), comma separated
+hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) => {
+  const coordinates = [request.params.longitude, request.params.latitude]
+  let radius = Number.parseFloat(request.params.radius)
+  try {
+    if (validation.validateCoordinates(coordinates)) {
+      console.log('radius: ', radius)
+      if (!radius || radius > MAX_RADIUS) {
+        radius = MAX_RADIUS
+      }
+      console.log('radius: ', radius)
+      const hotspots = await Hotspot.find({
+        location: {
+          $nearSphere: {
+            $geometry: {
+              type: 'Point',
+              coordinates: coordinates
+            },
+            $maxDistance: radius * 1000 // convert to meters
+          }
+        }
+      })
+      response.status(200).json(hotspots)
+    }
+    else {
+      return response.status(400).json({ error: 'Something wrong with coordinates.' })
+    }
+  } catch (exception) {
+    console.log(exception)
+    response.status(500).json({ error: exception._message })
+  }
+})
 
 hotspotsRouter.post('/', async (request, response) => {
   try {

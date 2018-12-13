@@ -7,13 +7,13 @@ const commentSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    /*pictureUrl: {
+    pictureUrl: {
       type: String,
       'ajv-schema': {
         type: 'string',
         format: 'url'
       }
-    },*/
+    },
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'

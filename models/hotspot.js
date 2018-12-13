@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const validation = require('../utils/validation')
 
 const hotspotSchema = new mongoose.Schema(
   {
@@ -22,13 +23,7 @@ const hotspotSchema = new mongoose.Schema(
         type: [Number],
         required: true,
         validate: { 
-          validator: c => {
-            return (
-              c.length === 2 &&
-              c[0] >= -180 && c[0] <= 180 &&
-              c[1] >= -90 && c[1] <= 90
-            )
-          }
+          validator: c => validation.validateCoordinates(c)
         }
       }
     },
