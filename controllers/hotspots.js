@@ -3,6 +3,7 @@ const Hotspot = require('../models/hotspot')
 const validation = require('../utils/validation')
 
 const MAX_RADIUS = 500 // maximum/default distance in km for searching nearby hotspots
+const MAX_HOTSPOTS = 100 // maximum number of hotspots returned for query
 
 hotspotsRouter.get('/', async (request, response) => {
   try{
@@ -17,6 +18,7 @@ hotspotsRouter.get('/', async (request, response) => {
 
 // GET nearby hotspots (requires 2dsphere index in collection)
 // parameters after @: longitude, latitude, radius (in kilometers), comma separated
+// returns hotspots sorted by distance limited to MAX_HOTSPOTS
 hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) => {
   const coordinates = [request.params.longitude, request.params.latitude]
   let radius = Number.parseFloat(request.params.radius)
@@ -27,17 +29,19 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
         radius = MAX_RADIUS
       }
       console.log('radius: ', radius)
-      const hotspots = await Hotspot.find({
-        location: {
-          $nearSphere: {
-            $geometry: {
-              type: 'Point',
-              coordinates: coordinates
-            },
-            $maxDistance: radius * 1000 // convert to meters
+      const hotspots = await Hotspot
+        .find({
+          location: {
+            $nearSphere: {
+              $geometry: {
+                type: 'Point',
+                coordinates: coordinates
+              },
+              $maxDistance: radius * 1000 // convert to meters
+            }
           }
-        }
-      })
+        })
+        .limit(MAX_HOTSPOTS)
       response.status(200).json(hotspots)
     }
     else {
