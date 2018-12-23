@@ -80,7 +80,7 @@ commentsRouter.delete('/:id', isUserLogged, async (request, response) => {
 
     // if comment wasn't found, it's probably deleted already
     if (!comment) {
-      return return response.status(204).end()
+      return response.status(204).end()
     }
 
     if (comment.addedBy.toString() !== request.user._id.toString()) {

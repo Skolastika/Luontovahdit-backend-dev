@@ -48,7 +48,7 @@ usersRouter.delete('/:id', async (request, response) => {
 
     // if user wasn't found, it's probably deleted already
     if (!user) {
-      return return response.status(204).end()
+      return response.status(204).end()
     }
 
     // TODO: What happens to user's hotspots and comments
@@ -60,7 +60,7 @@ usersRouter.delete('/:id', async (request, response) => {
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
-      return return response.status(400).json({ error: 'Malformed id.' })
+      return response.status(400).json({ error: 'Malformed id.' })
     }
     return response.status(500).json({ error: 'Something went wrong while deleting user.' })
   }
