@@ -11,10 +11,10 @@ hotspotsRouter.get('/', async (request, response) => {
   try{
     const hotspots = await Hotspot
       .find({})
-    response.json(hotspots.map(Hotspot.formatWithComments))
+    return response.json(hotspots.map(Hotspot.formatWithComments))
   } catch (exception) {
     console.log(exception)
-    response.status(500).json({ error: 'Failed to retrieve hotspots.' })
+    return response.status(500).json({ error: 'Failed to retrieve hotspots.' })
   }
 })
 
@@ -44,14 +44,14 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
           }
         })
         .limit(MAX_HOTSPOTS)
-      response.status(200).json(hotspots)
+      return response.status(200).json(hotspots.map(Hotspot.formatWithComments))
     }
     else {
-      response.status(400).json({ error: 'Something wrong with coordinates.' })
+      return response.status(400).json({ error: 'Something wrong with coordinates.' })
     }
   } catch (exception) {
     console.log(exception)
-    response.status(500).json({ error: exception._message })
+    return response.status(500).json({ error: exception._message })
   }
 })
 
@@ -62,16 +62,16 @@ hotspotsRouter.post('/', isUserLogged, async (request, response) => {
     body.addedBy = request.user._id
     const hotspot = new Hotspot(body)
     const savedHotspot = await hotspot.save()
-    response.status(201).json(savedHotspot)
+    return response.status(201).json(Hotspot.formatWithComments(savedHotspot))
   } catch (exception) {
     console.log(exception)
     if (exception.name === 'ValidationError') {
       console.log(exception._message)
       const paths = Object.keys(exception.errors)
       console.log(paths)
-      response.status(400).json({ error: `Validation error: problem with ${paths.join(', ')}.` })
+      return response.status(400).json({ error: `Validation error: problem with ${paths.join(', ')}.` })
     } else {
-      response.status(500).json({ error: 'Failed to create hotspot.' })
+      return response.status(500).json({ error: 'Failed to create hotspot.' })
     }
   }
 })
@@ -80,19 +80,19 @@ hotspotsRouter.delete('/:id', isUserLogged, async (request, response) => {
   try {
     const hotspot = await Hotspot.findById(request.params.id)
     if (!hotspot) {
-      response.status(204).end()
+      return response.status(204).end()
     }
     if (hotspot.addedBy.toString() !== request.user._id.toString()) {
-      response.status(403).json({ error: 'Hotspot created by another user.' })
+      return response.status(403).json({ error: 'Hotspot created by another user.' })
     }
     await hotspot.remove()
-    response.status(204).end()
+    return response.status(204).end()
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
-      response.status(400).json({ error: 'Malformed id.' })
+      return response.status(400).json({ error: 'Malformed id.' })
     }
-    response.status(500).json({ error: 'Failed to delete hotspot.' })
+    return response.status(500).json({ error: 'Failed to delete hotspot.' })
   }
 })
 
@@ -100,10 +100,10 @@ hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
   try {
     const hotspot = await Hotspot.findById(request.params.id)
     if (!hotspot) {
-      response.status(404).json({ error: 'No such hotspot.' })
+      return response.status(404).json({ error: 'No such hotspot.' })
     }
     if (hotspot.addedBy.toString() !== request.user._id.toString()) {
-      response.status(403).json({ error: 'Hotspot created by another user.' })
+      return response.status(403).json({ error: 'Hotspot created by another user.' })
     }
     const body = request.body
     if (body._id) {
@@ -117,16 +117,16 @@ hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
       if (error) {
         console.log(error)
         const paths = Object.keys(error.errors)
-        response.status(400).json({ error: `Hotspot validation error: problem with ${paths.join(', ')}.` })
+        return response.status(400).json({ error: `Hotspot validation error: problem with ${paths.join(', ')}.` })
       }
-      response.status(200).json(updatedHotspot)
+      return response.status(200).json(Hotspot.formatWithComments(updatedHotspot))
     })
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
-      response.status(400).json({ error: 'Malformed id.' })
+      return response.status(400).json({ error: 'Malformed id.' })
     }
-    response.status(500).json({ error: 'Failed to update hotspot.' })
+    return response.status(500).json({ error: 'Failed to update hotspot.' })
   }
 })
 
