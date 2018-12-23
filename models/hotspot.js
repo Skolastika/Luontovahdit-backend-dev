@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const validation = require('../utils/validation')
+const Comment = require('../models/comment')
 
 const hotspotSchema = new mongoose.Schema(
   {
@@ -8,11 +9,11 @@ const hotspotSchema = new mongoose.Schema(
       required: true,
       validate: t => t.length > 0
     },
-    /*addedBy: {
+    addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true
-    },*/
+    },
     location: { // GeoJSON
       type: {
         type: String,
@@ -46,6 +47,31 @@ const hotspotSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+const FIELDS_TO_POPULATE = { path: 'comments', select: '-inHotspot' }
+
+hotspotSchema.post('find', async (docs, next) => {
+  for (let doc of docs) {
+    await doc.populate(FIELDS_TO_POPULATE).execPopulate()
+  }
+  next()
+})
+
+hotspotSchema.post('save', (doc, next) => {
+  doc.populate(FIELDS_TO_POPULATE).execPopulate().then(() =>  next())
+})
+
+hotspotSchema.statics.formatWithComments = (hotspot) => {
+  const formattedComments = hotspot.comments.map(Comment.formatForHotspot)
+  const formattedHotspot = {
+    ...hotspot._doc,
+    id: hotspot._id,
+    comments: formattedComments
+  }
+  delete formattedHotspot._id
+  delete formattedHotspot.__v
+  return formattedHotspot
+}
 
 const Hotspot = mongoose.model('Hotspot', hotspotSchema)
 

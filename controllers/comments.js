@@ -2,54 +2,52 @@ const commentsRouter = require('express').Router()
 const Comment = require('../models/comment')
 const Hotspot = require('../models/hotspot')
 const User = require('../models/user')
+const { isUserLogged } = require('../utils/authentication')
 
 
 commentsRouter.get('/', async (request, response) => {
   try {
-    const comments = await Comment.find({})
-    response.json(comments) // format...
+    const comments = await Comment
+      .find({})
+    response.json(comments.map(Comment.format))
+
   } catch (exception) {
     console.log(exception)
+
     response.status(500).json({ error: 'Failed to retrieve comments.' })
   }
 })
 
 commentsRouter.get('/user=:userId', async (request, response) => {
   try {
-    const comments = await Comment.find({ addedBy: request.params.userId })
-    response.json(comments) // format...
+    const comments = await Comment
+      .find({ addedBy: request.params.userId })
+    response.json(comments.map(Comment.format))
+
   } catch (exception) {
     console.log(exception)
+
     if (exception.kind === 'ObjectId') {
-      return response.status(400).json({ error: exception.message })
+      response.status(400).json({ error: exception.message })
     }
+
     response.status(500).json({ error: 'Failed to retrieve comments.' })
   }
 })
 
-commentsRouter.post('/', async (request, response) => {
+commentsRouter.post('/', isUserLogged, async (request, response) => {
   try {
     const body = request.body
-
-    if (!body.userId) {
-      return response.status(400).json({ error: 'No user specified.' })
-    }
-
-    // TODO: decode user token and find user by id from token
-    //       and set addedBy according to found user (or return error)
-    //       replace body.userId with token in header
-    const user = await User.findById(body.userId)
     const hotspot = await Hotspot.findById(body.inHotspot)
 
-    if (!user) {
-      return response.status(404).json({ error: 'User not found.' })
+    if (!hotspot) {
+      response.status(404).json({ error: 'Comment could not be added because related hotspot not found.' })
     }
 
     const commentObject = {
       ...body,
-      addedBy: user._id
+      addedBy: request.user._id
     }
-    delete commentObject.userId
 
     const comment = new Comment(commentObject)
     const savedComment = await comment.save()
@@ -57,24 +55,26 @@ commentsRouter.post('/', async (request, response) => {
     hotspot.comments = hotspot.comments.concat(savedComment._id)
     await hotspot.save()
 
-    response.status(201).json(savedComment) // format...
+    response.status(201).json(Comment.format(savedComment))
 
   } catch (exception) {
     console.log(exception)
+
     if (exception.name === 'ValidationError') {
       console.log(exception._message)
       const paths = Object.keys(exception.errors)
       console.log(paths)
       response.status(400).json({ error: `Validation error: problem with ${paths.join(', ')}.` })
+
     } else if (exception.kind === 'ObjectId') {
-      return response.status(400).json({ error: exception.message })
-    } else {
-      response.status(500).json({ error: 'Failed to create comment.' })
+      response.status(400).json({ error: exception.message })
+
     }
+    response.status(500).json({ error: 'Failed to create comment.' })
   }
 })
 
-commentsRouter.delete('/:id', async (request, response) => {
+commentsRouter.delete('/:id', isUserLogged, async (request, response) => {
   try {
     const comment = await Comment.findById(request.params.id)
 
@@ -83,49 +83,65 @@ commentsRouter.delete('/:id', async (request, response) => {
       return response.status(204).end()
     }
 
+    if (comment.addedBy.toString() !== request.user._id.toString()) {
+      response.status(403).json({ error: 'Comment created by another user.' })
+    }
+
     const hotspot = await Hotspot.findById(comment.inHotspot)
     await comment.remove()
 
-    if (!hotspot) {
-      return response.status(410).json({ error: `The hotspot this comment is related to wasn't found on the server.` })
+    if (hotspot) {
+      hotspot.comments = hotspot.comments.filter(c => c.toString() !== request.params.id.toString())
+      await hotspot.save()
     }
 
-    hotspot.comments = hotspot.comments.filter(c => c.toString() !== request.params.id.toString())
-    await hotspot.save()
     response.status(204).end()
 
   } catch (exception) {
     console.log(exception)
+
     if (exception.kind === 'ObjectId') {
-      return response.status(400).json({ error: 'Malformed id.' })
+      response.status(400).json({ error: 'Malformed id.' })
     }
     response.status(500).json({ error: 'Something went wrong while deleting comment.' })
   }
 })
 
-commentsRouter.patch('/:id', async (request, response) => {
+commentsRouter.patch('/:id', isUserLogged, async (request, response) => {
   try {
     const comment = await Comment.findById(request.params.id)
     const body = request.body
-    if (comment) {
-      if (body._id) {
-        delete body._id
-      }
-      console.log(body)
-      for (let a in body) {
-        comment[a] = body[a]
-      }
-      console.log(comment)
-      comment.save((error, updatedComment) => {
-        if (error) {
-          const paths = Object.keys(error.errors)
-          return response.status(400).json({ error: `Comment validation error: problem with ${paths.join(', ')}.` })
-        }
-        return response.status(200).json(updatedComment)
-      })
+
+    if (!comment) {
+      response.status(404).json({ error: 'Comment not found.' })
     }
+
+    if (comment.addedBy.toString() !== request.user._id.toString()) {
+      response.status(403).json({ error: 'Comment created by another user.' })
+    }
+
+    if (body._id) {
+      delete body._id
+    }
+    console.log(body)
+    for (let a in body) {
+      comment[a] = body[a]
+    }
+
+    comment.save((error, updatedComment) => {
+      if (error) {
+        const paths = Object.keys(error.errors)
+        response.status(400).json({ error: `Comment validation error: problem with ${paths.join(', ')}.` })
+      }
+      response.status(200).json(Comment.format(updatedComment))
+    })
+
   } catch (exception) {
     console.log(exception)
+
+    if (exception.kind === 'ObjectId') {
+      response.status(400).json({ error: 'Malformed id.' })
+    }
     response.status(500).json({ error: 'Failed to update comment' })
   }
 })

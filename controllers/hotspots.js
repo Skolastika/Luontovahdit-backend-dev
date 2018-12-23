@@ -1,6 +1,8 @@
 const hotspotsRouter = require('express').Router()
 const Hotspot = require('../models/hotspot')
+const User = require('../models/user')
 const validation = require('../utils/validation')
+const { isUserLogged } = require('../utils/authentication')
 
 const MAX_RADIUS = 500 // maximum/default distance in km for searching nearby hotspots
 const MAX_HOTSPOTS = 100 // maximum number of hotspots returned for query
@@ -8,8 +10,8 @@ const MAX_HOTSPOTS = 100 // maximum number of hotspots returned for query
 hotspotsRouter.get('/', async (request, response) => {
   try{
     const hotspots = await Hotspot
-      .find({}) // populate?
-    response.json(hotspots) // format!
+      .find({})
+    response.json(hotspots.map(Hotspot.formatWithComments))
   } catch (exception) {
     console.log(exception)
     response.status(500).json({ error: 'Failed to retrieve hotspots.' })
@@ -45,7 +47,7 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
       response.status(200).json(hotspots)
     }
     else {
-      return response.status(400).json({ error: 'Something wrong with coordinates.' })
+      response.status(400).json({ error: 'Something wrong with coordinates.' })
     }
   } catch (exception) {
     console.log(exception)
@@ -53,14 +55,13 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
   }
 })
 
-hotspotsRouter.post('/', async (request, response) => {
+hotspotsRouter.post('/', isUserLogged, async (request, response) => {
   try {
-    // user token needs to be sent, extracted, and verified
+    console.log(request.baseUrl)
     const body = request.body
+    body.addedBy = request.user._id
     const hotspot = new Hotspot(body)
     const savedHotspot = await hotspot.save()
-    // populate comments?
-    // savedHotspot.populate('comments', {})
     response.status(201).json(savedHotspot)
   } catch (exception) {
     console.log(exception)
@@ -75,49 +76,55 @@ hotspotsRouter.post('/', async (request, response) => {
   }
 })
 
-hotspotsRouter.delete('/:id', async (request, response) => {
+hotspotsRouter.delete('/:id', isUserLogged, async (request, response) => {
   try {
     const hotspot = await Hotspot.findById(request.params.id)
     if (!hotspot) {
-      return response.status(204).end()
+      response.status(204).end()
     }
-    // should check user token here
+    if (hotspot.addedBy.toString() !== request.user._id.toString()) {
+      response.status(403).json({ error: 'Hotspot created by another user.' })
+    }
     await hotspot.remove()
     response.status(204).end()
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
-      return response.status(400).json({ error: 'Malformed id.' })
+      response.status(400).json({ error: 'Malformed id.' })
     }
     response.status(500).json({ error: 'Failed to delete hotspot.' })
   }
 })
 
-hotspotsRouter.patch('/:id', async (request, response) => {
+hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
   try {
     const hotspot = await Hotspot.findById(request.params.id)
-    const body = request.body
-    if (hotspot) {
-      if (body._id) {
-        delete body._id
-      }
-      console.log(body)
-      for (let a in body) {
-        hotspot[a] = body[a]
-      }
-      hotspot.save((error, updatedHotspot) => {
-        if (error) {
-          console.log(error)
-          const paths = Object.keys(error.errors)
-          return response.status(400).json({ error: `Hotspot validation error: problem with ${paths.join(', ')}.` })
-        }
-        return response.status(200).json(updatedHotspot)
-      })
+    if (!hotspot) {
+      response.status(404).json({ error: 'No such hotspot.' })
     }
+    if (hotspot.addedBy.toString() !== request.user._id.toString()) {
+      response.status(403).json({ error: 'Hotspot created by another user.' })
+    }
+    const body = request.body
+    if (body._id) {
+      delete body._id
+    }
+    console.log(body)
+    for (let a in body) {
+      hotspot[a] = body[a]
+    }
+    hotspot.save((error, updatedHotspot) => {
+      if (error) {
+        console.log(error)
+        const paths = Object.keys(error.errors)
+        response.status(400).json({ error: `Hotspot validation error: problem with ${paths.join(', ')}.` })
+      }
+      response.status(200).json(updatedHotspot)
+    })
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
-      return response.status(400).json({ error: 'Malformed id.' })
+      response.status(400).json({ error: 'Malformed id.' })
     }
     response.status(500).json({ error: 'Failed to update hotspot.' })
   }

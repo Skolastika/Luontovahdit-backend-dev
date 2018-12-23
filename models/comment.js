@@ -39,6 +39,47 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+
+
+const FIELDS_TO_POPULATE = { path: 'inHotspot', select: 'title' }
+
+commentSchema.post('find', async (docs, next) => {
+  for (let doc of docs) {
+    await doc.populate(FIELDS_TO_POPULATE).execPopulate()
+  }
+  next()
+})
+
+commentSchema.post('save', (doc, next) => {
+  doc.populate(FIELDS_TO_POPULATE).execPopulate().then(() => next())
+})
+
+commentSchema.statics.format = (comment) => {
+  const formattedHotspot = { ...comment.inHotspot._doc }
+  formattedHotspot.id = comment.inHotspot._id
+  delete formattedHotspot._id
+  console.log(formattedHotspot)
+  const formattedComment = {
+    ...comment._doc,
+    id: comment._id,
+    inHotspot: formattedHotspot
+  }
+  delete formattedComment._id
+  delete formattedComment.__v
+  return formattedComment
+}
+
+commentSchema.statics.formatForHotspot = (comment) => {
+  const formattedComment = {
+    ...comment._doc,
+    id: comment._id,
+  }
+  delete formattedComment._id
+  delete formattedComment.__v
+  delete inHotspot
+  return formattedComment
+}
+
 const Comment = mongoose.model('Comment', commentSchema)
 
 module.exports = Comment
