@@ -41,7 +41,10 @@ const commentSchema = new mongoose.Schema(
 
 
 
-const FIELDS_TO_POPULATE = { path: 'inHotspot', select: 'title' }
+const FIELDS_TO_POPULATE = [
+  { path: 'inHotspot', select: 'title' },
+  { path: 'addedBy', select: 'displayname' }
+]
 
 commentSchema.post('find', async (docs, next) => {
   for (let doc of docs) {
@@ -58,7 +61,6 @@ commentSchema.statics.format = (comment) => {
   const formattedHotspot = { ...comment.inHotspot._doc }
   formattedHotspot.id = comment.inHotspot._id
   delete formattedHotspot._id
-  console.log(formattedHotspot)
   const formattedComment = {
     ...comment._doc,
     id: comment._id,
@@ -73,6 +75,10 @@ commentSchema.statics.formatForHotspot = (comment) => {
   const formattedComment = {
     ...comment._doc,
     id: comment._id,
+    addedBy: {
+      id: comment.addedBy._id,
+      name: comment.addedBy.displayname
+    }
   }
   delete formattedComment._id
   delete formattedComment.__v

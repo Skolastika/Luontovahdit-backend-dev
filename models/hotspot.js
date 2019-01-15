@@ -9,6 +9,11 @@ const hotspotSchema = new mongoose.Schema(
       required: true,
       validate: t => t.length > 0
     },
+    description: {
+      type: String,
+      required: true,
+      validate: d => d.length > 0
+    },
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -48,7 +53,10 @@ const hotspotSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-const FIELDS_TO_POPULATE = { path: 'comments', select: '-inHotspot' }
+const FIELDS_TO_POPULATE = [
+  { path: 'comments', select: '-inHotspot' },
+  { path: 'addedBy', select: 'displayname' }
+]
 
 hotspotSchema.post('find', async (docs, next) => {
   for (let doc of docs) {
@@ -66,7 +74,11 @@ hotspotSchema.statics.formatWithComments = (hotspot) => {
   const formattedHotspot = {
     ...hotspot._doc,
     id: hotspot._id,
-    comments: formattedComments
+    comments: formattedComments,
+    addedBy: {
+      id: hotspot.addedBy._id,
+      name: hotspot.addedBy.displayname
+    }
   }
   delete formattedHotspot._id
   delete formattedHotspot.__v
