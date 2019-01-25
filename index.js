@@ -21,6 +21,7 @@ require('dotenv').config();
 
 let app = express();
 app.use(bodyParser.json())
+app.use(express.static('build'))
 
 const port = process.env.PORT || 8000;
 
@@ -41,9 +42,7 @@ app.use(session({
     cookie : {maxAge : 180 * 60 * 60 * 24},
     store : new MongoStore ({
         collection : "session",
-        //url : "mongodb://localhost/luontovahditsession",
-        url : process.env.ATLAS_URI,
-        //mongooseConnection: mongoose.connection,
+        mongooseConnection: mongoose.connection,
         ttl : 24 * 60 * 60
     })
 }));
@@ -105,7 +104,8 @@ app.post("/login", [
 
     passport.authenticate("local-login", {failureRedirect : "/" }), function(req, res){
         return res.status(200).json({"token" : req.session.token})
-    });
+    }
+)
 
 app.post("/logout", function (req, res){
     if (req.session){
@@ -161,6 +161,7 @@ app.post("/register", [
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
+        console.log('r1: ',errors)
         return res.status(409).json(errors.array());
     }
 
@@ -173,7 +174,7 @@ app.post("/register", [
 
     user.save().then(
         () => {return res.status(200).json({"message": "success"})},
-        (error) => { return res.status(409).json({ "message" : "username or email address already in use " });}
+        (error) => { console.log('r2: ',error); return res.status(409).json({ "message" : "username or email address already in use " });}
     )
 });
 
