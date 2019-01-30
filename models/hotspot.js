@@ -41,6 +41,14 @@ const hotspotSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    upVotedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    downVotedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     flagged: {
       type: Boolean,
       default: false
@@ -59,6 +67,7 @@ const FIELDS_TO_POPULATE = [
 ]
 
 hotspotSchema.post('find', async (docs, next) => {
+  console.log('post find hotspot: ', docs)
   for (let doc of docs) {
     await doc.populate(FIELDS_TO_POPULATE).execPopulate()
   }
@@ -70,6 +79,7 @@ hotspotSchema.post('save', (doc, next) => {
 })
 
 hotspotSchema.statics.formatWithComments = (hotspot) => {
+  console.log('hotspot formatWithComments: ', hotspot)
   const formattedComments = hotspot.comments.map(Comment.formatForHotspot)
   const formattedHotspot = {
     ...hotspot._doc,

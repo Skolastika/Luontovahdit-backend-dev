@@ -107,11 +107,11 @@ commentsRouter.delete('/:id', isUserLogged, async (request, response) => {
   }
 })
 
-commentsRouter.patch('/:id', isUserLogged, async (request, response) => {
+commentsRouter.post('/:id/edit', isUserLogged, async (request, response) => {
   try {
     const comment = await Comment.findById(request.params.id)
     const body = request.body
-
+    
     if (!comment) {
       return response.status(404).json({ error: 'Comment not found.' })
     }
@@ -123,9 +123,9 @@ commentsRouter.patch('/:id', isUserLogged, async (request, response) => {
     if (body._id) {
       delete body._id
     }
-    console.log(body)
-    for (let a in body) {
-      comment[a] = body[a]
+   
+    if (body.content) {
+      comment.content = body.content
     }
 
     comment.save((error, updatedComment) => {
@@ -143,6 +143,49 @@ commentsRouter.patch('/:id', isUserLogged, async (request, response) => {
       return response.status(400).json({ error: 'Malformed id.' })
     }
     return response.status(500).json({ error: 'Failed to update comment' })
+  }
+})
+
+// At the moment only accepting one vote per user, but not able to cancel vote.
+commentsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
+  try {
+    let comment = await Comment.findById(request.params.id)
+    if (!comment) {
+      return response.status(404).json({ error: 'No such comment.' })
+    }
+    // check if the user's id is already logged as voted
+    // (converting id to string for comparison)
+    if (comment.upVotedBy.map(u => u.toString()).includes(request.user._id.toString())) {
+      return response.status(409).json({ error: 'Already voted.' })
+    }
+    if (comment.downVotedBy.map(u => u.toString()).includes(request.user._id.toString())) {
+      return response.status(409).json({ error: 'Already voted.' })
+    }
+    if (request.body.type === 'upVote') {
+      comment = await Comment.findByIdandUpdate(request.params.id,
+        {
+          $inc: { upVotes: 1 },
+          $push: { upVotedBy: request.user._id }
+        },
+        { new: true }
+      )
+    }
+    if (request.body.type === 'downVote') {
+      comment = await Comment.findByIdAndUpdate(request.params.id,
+        {
+          $inc: { downVotes: 1 },
+          $push: { downVotedBy: request.user._id }
+        },
+        { new: true }
+      )
+    }
+    return response.status(200).json(Comment.format(comment))
+  } catch (exception) {
+    console.log(exception)
+    if (exception.kind === 'ObjectId') {
+      return response.status(400).json({ error: 'Malformed id.' })
+    }
+    return response.status(500).json({ error: 'Failed to update comment.' })
   }
 })
 

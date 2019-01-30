@@ -31,6 +31,14 @@ const commentSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    upVotedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    downVotedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     flagged: {
       type: Boolean,
       default: false
@@ -47,6 +55,7 @@ const FIELDS_TO_POPULATE = [
 ]
 
 commentSchema.post('find', async (docs, next) => {
+  console.log('post find comment: ', docs)
   for (let doc of docs) {
     await doc.populate(FIELDS_TO_POPULATE).execPopulate()
   }
@@ -72,6 +81,7 @@ commentSchema.statics.format = (comment) => {
 }
 
 commentSchema.statics.formatForHotspot = (comment) => {
+  console.log('formatForHotspot: ', comment)
   const formattedComment = {
     ...comment._doc,
     id: comment._id,

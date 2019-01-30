@@ -11,6 +11,7 @@ hotspotsRouter.get('/', async (request, response) => {
   try{
     const hotspots = await Hotspot
       .find({})
+      //console.log(hotspots)
     return response.json(hotspots.map(Hotspot.formatWithComments))
   } catch (exception) {
     console.log(exception)
@@ -55,6 +56,19 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
   }
 })
 
+hotspotsRouter.get('/:id', async (request, response) => {
+  try{
+    const hotspot = await Hotspot
+      .findById(request.params.id)
+    await  hotspot.save() // To run post save hooks including populate
+                          // which doesn't get run after findById. TODO: Other solutions?
+    return response.json(Hotspot.formatWithComments(hotspot))
+  } catch (exception) {
+    console.log(exception)
+    return response.status(500).json({ error: 'Failed to retrieve hotspot.' })
+  }
+})
+
 hotspotsRouter.post('/', isUserLogged, async (request, response) => {
   try {
     console.log(request.baseUrl)
@@ -96,7 +110,7 @@ hotspotsRouter.delete('/:id', isUserLogged, async (request, response) => {
   }
 })
 
-hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
+hotspotsRouter.post('/:id/edit', isUserLogged, async (request, response) => {
   try {
     const hotspot = await Hotspot.findById(request.params.id)
     if (!hotspot) {
@@ -109,9 +123,12 @@ hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
     if (body._id) {
       delete body._id
     }
-    console.log(body)
-    for (let a in body) {
-      hotspot[a] = body[a]
+    // allow editing of only title and description
+    if (body.title) {
+      hotspot.title = body.title
+    }
+    if (body.description) {
+      hotspot.description = body.description
     }
     hotspot.save((error, updatedHotspot) => {
       if (error) {
@@ -121,6 +138,49 @@ hotspotsRouter.patch('/:id', isUserLogged, async (request, response) => {
       }
       return response.status(200).json(Hotspot.formatWithComments(updatedHotspot))
     })
+  } catch (exception) {
+    console.log(exception)
+    if (exception.kind === 'ObjectId') {
+      return response.status(400).json({ error: 'Malformed id.' })
+    }
+    return response.status(500).json({ error: 'Failed to update hotspot.' })
+  }
+})
+
+// At the moment only accepting one vote per user, not able to cancel vote.
+hotspotsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
+  try {
+    let hotspot = await Hotspot.findById(request.params.id)
+    if (!hotspot) {
+      return response.status(404).json({ error: 'No such hotspot.' })
+    }
+    // check if the user's id is already logged as voted
+    // (converting id to string for comparison)
+    if (hotspot.upVotedBy.map(u => u.toString()).includes(request.user._id.toString())) {
+      return response.status(409).json({ error: 'Already voted.' })
+    }
+    if (hotspot.downVotedBy.map(u => u.toString()).includes(request.user._id.toString())) {
+      return response.status(409).json({ error: 'Already voted.' })
+    }
+    if (request.body.type === 'upVote') {
+      hotspot = await Hotspot.findByIdAndUpdate(request.params.id,
+        {
+          $inc: { upVotes: 1 },
+          $push: { upVotedBy: request.user._id }
+        },
+        { new: true }
+      )
+    }
+    if (request.body.type === 'downVote') {
+      hotspot = await Hotspot.findByIdAndUpdate(request.params.id,
+        {
+          $inc: { downVotes: 1 },
+          $push: { downVotedBy: request.user._id }
+        },
+        { new: true }
+      )
+    }
+    return response.status(200).json(Hotspot.formatWithComments(hotspot))
   } catch (exception) {
     console.log(exception)
     if (exception.kind === 'ObjectId') {
