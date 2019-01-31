@@ -87,7 +87,7 @@ commentSchema.statics.formatForHotspot = (comment) => {
     id: comment._id,
     addedBy: {
       id: comment.addedBy._id,
-      name: comment.addedBy.displayname
+      displayname: comment.addedBy.displayname
     }
   }
   delete formattedComment._id

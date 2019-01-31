@@ -111,7 +111,7 @@ commentsRouter.post('/:id/edit', isUserLogged, async (request, response) => {
   try {
     const comment = await Comment.findById(request.params.id)
     const body = request.body
-    
+
     if (!comment) {
       return response.status(404).json({ error: 'Comment not found.' })
     }
@@ -162,7 +162,7 @@ commentsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
       return response.status(409).json({ error: 'Already voted.' })
     }
     if (request.body.type === 'upVote') {
-      comment = await Comment.findByIdandUpdate(request.params.id,
+      comment = await Comment.findByIdAndUpdate(request.params.id,
         {
           $inc: { upVotes: 1 },
           $push: { upVotedBy: request.user._id }
@@ -179,6 +179,7 @@ commentsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
         { new: true }
       )
     }
+    await comment.save()
     return response.status(200).json(Comment.format(comment))
   } catch (exception) {
     console.log(exception)
