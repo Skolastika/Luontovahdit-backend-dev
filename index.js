@@ -56,27 +56,30 @@ passport.serializeUser(function(user, done){
     done(null, user._id);
 })
 
-passport.deserializeUser(function(id, done) {
+passport.deserializeUser(async function(id, done) {
     console.log("deserializeUser");
-    userModel.findById(id, function(err, user){
-        if(err){
-            return done(err);
-        }
-        if(!user){
-            return done(null, false);
-        }
-        return done(null, user);
+    try {
+      const user = await userModel.findById(id)
+      console.log('do we have a user? ', user)
+      if(!user){
+        return done(null, false);
+      }
+      return done(null, user);
+    } catch (err) {
+      return done(err);
+    }
+  }
+)
 
-    })
-})
-
-
-function createSaltedPassword (pw){
-    return bcrypt.hashSync(pw, bcrypt.genSaltSync(8), null);
+const createSaltedPassword = async (pw) => {
+  const pwHash = await bcrypt.hash(pw, 10)
+  return pwHash
 }
 
-function isPasswordValid (pw, hash){
-    return bcrypt.compareSync(pw, hash);
+const isPasswordValid = async (pw, hash) => {
+  const pwCorrect = await bcrypt.compare(pw, hash)
+  console.log('password: ', pwCorrect)
+  return pwCorrect
 }
 
 
@@ -102,7 +105,8 @@ app.post("/login", [
         }
     },
 
-    passport.authenticate("local-login", {failureRedirect : "/" }), function(req, res){
+    passport.authenticate("local-login"),
+    function(req, res){
         return res.status(200).json({"token" : req.session.token})
     }
 )
@@ -119,26 +123,33 @@ passport.use("local-login", new localStrategy({
     usernameField : "username",
     passwordField : "password",
     passReqToCallback : true
-}, function(req, username, password, done) {
+  }, async function(req, username, password, done) {
 
     console.log('in local-login')
 
-    userModel.findOne({"username" : username}, function(err, user){
-        if (err){
-            return done(err);
-        }
-        if (!user){
-            return done(null, false, "Wrong credential");
-        }
-        if (isPasswordValid(password, user.password)){
+    try {
+      const user = await userModel.findOne({"username" : username})
 
-            let token = createToken();
-            req.session.token = token;
-            req.session.username = username;
-            return done(null, user);
-        }
-    })
-}))
+      if (!user){
+        return done(null, false, "Wrong credential");
+      }
+      const pwValid = await isPasswordValid(password, user.password)
+      console.log(pwValid)
+      if (pwValid){
+
+        let token = createToken();
+        req.session.token = token;
+        req.session.username = username;
+        return done(null, user);
+      } else {
+        console.log('something goes wrong here...')
+        return done(null, false, "Wrong password")
+      }
+    } catch (err) {
+      return done(err)
+    }
+  })
+)
 
 
 
@@ -156,7 +167,7 @@ app.post("/register", [
     sanitizeBody('email').normalizeEmail()
 
 
-], function(req, res){
+], async function(req, res){
 
     const errors = validationResult(req);
 
@@ -168,7 +179,7 @@ app.post("/register", [
     let user = new userModel({
         "username" : req.body.username,
         "displayname" : req.body.displayname,
-        "password" : createSaltedPassword(req.body.password),
+        "password" : await createSaltedPassword(req.body.password),
         "email" : req.body.email
     })
 
