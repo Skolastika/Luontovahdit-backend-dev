@@ -52,9 +52,10 @@ exports.profileGet = function (req, res){
         } if (prof) {
             console.log(prof);
             let profile = {
-                name : prof.username,
-                displayname : prof.displayname,
-                email : prof.email
+              id: prof._id,
+              username : prof.username,
+              displayname : prof.displayname,
+              email : prof.email
             }
             return res.status(200).json(profile);
         }
