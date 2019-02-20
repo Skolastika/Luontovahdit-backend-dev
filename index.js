@@ -107,7 +107,14 @@ app.post("/login", [
 
     passport.authenticate("local-login"),
     function(req, res){
-        return res.status(200).json({"token" : req.session.token})
+      console.log(req.user)
+      const user = {
+        id: req.user._id,
+        username: req.user.username,
+        displayname: req.user.displayname,
+        email: req.user.email
+      }
+      return res.status(200).json(user)
     }
 )
 
@@ -129,18 +136,19 @@ passport.use("local-login", new localStrategy({
 
     try {
       const user = await userModel.findOne({"username" : username})
-
+      console.log('user: ', user)
       if (!user){
-        return done(null, false, "Wrong credential");
+        return done(null, false, "Wrong credential")
       }
       const pwValid = await isPasswordValid(password, user.password)
       console.log(pwValid)
       if (pwValid){
 
-        let token = createToken();
-        req.session.token = token;
-        req.session.username = username;
-        return done(null, user);
+        let token = createToken()
+        req.session.token = token
+        req.session.username = username
+        return done(null, user)
+
       } else {
         console.log('something goes wrong here...')
         return done(null, false, "Wrong password")
