@@ -56,6 +56,21 @@ hotspotsRouter.get('/@:longitude,:latitude,:radius', async (request, response) =
   }
 })
 
+hotspotsRouter.get('/user=:userId', async (request, response) => {
+  try {
+    const hotspots = await Hotspot.find({ addedBy: request.params.userId })
+    return response.json(hotspots.map(Hotspot.formatWithComments))
+
+  } catch (exception) {
+
+    if (exception.kind === 'ObjectId') {
+      return response.status(400).json({ error: exception.message })
+    }
+
+    return response.status(500).json({ error: 'Failed to retrieve hotspots.' })
+  }
+})
+
 hotspotsRouter.get('/:id', async (request, response) => {
   try{
     const hotspot = await Hotspot
