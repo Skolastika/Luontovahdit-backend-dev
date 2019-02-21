@@ -62,7 +62,7 @@ commentSchema.post('find', async (docs, next) => {
   next()
 })
 
-commentSchema.post('save', (doc, next) => {
+commentSchema.post(/save|findOneAndUpdate/, (doc, next) => {
   doc.populate(FIELDS_TO_POPULATE).execPopulate().then(() => next())
 })
 

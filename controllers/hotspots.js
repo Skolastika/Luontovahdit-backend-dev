@@ -195,7 +195,6 @@ hotspotsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
         { new: true }
       )
     }
-    await hotspot.save()
     return response.status(200).json(Hotspot.formatWithComments(hotspot))
   } catch (exception) {
     console.log(exception)

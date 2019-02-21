@@ -3,6 +3,7 @@ const Comment = require('../models/comment')
 const Hotspot = require('../models/hotspot')
 const User = require('../models/user')
 const { isUserLogged } = require('../utils/authentication')
+const mongoose = require('mongoose')
 
 
 commentsRouter.get('/', async (request, response) => {
@@ -38,11 +39,6 @@ commentsRouter.get('/user=:userId', async (request, response) => {
 commentsRouter.post('/', isUserLogged, async (request, response) => {
   try {
     const body = request.body
-    const hotspot = await Hotspot.findById(body.inHotspot)
-
-    if (!hotspot) {
-      return response.status(404).json({ error: 'Comment could not be added because related hotspot not found.' })
-    }
 
     const commentObject = {
       ...body,
@@ -52,8 +48,15 @@ commentsRouter.post('/', isUserLogged, async (request, response) => {
     const comment = new Comment(commentObject)
     const savedComment = await comment.save()
 
-    hotspot.comments = hotspot.comments.concat(savedComment._id)
-    await hotspot.save()
+    const hotspot = await Hotspot.findByIdAndUpdate(body.inHotspot,
+      {
+        $push: { comments: comment }
+      }
+    )
+    if (!hotspot) {
+      await Comment.findByIdAndDelete(comment._id)
+      return response.status(404).json({ error: 'Comment could not be added because related hotspot not found.' })
+    }
 
     return response.status(201).json(Comment.format(savedComment))
 
@@ -179,7 +182,6 @@ commentsRouter.post('/:id/vote', isUserLogged, async (request, response) => {
         { new: true }
       )
     }
-    await comment.save()
     return response.status(200).json(Comment.format(comment))
   } catch (exception) {
     console.log(exception)

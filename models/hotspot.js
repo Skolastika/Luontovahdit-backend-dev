@@ -67,16 +67,16 @@ const FIELDS_TO_POPULATE = [
 ]
 
 hotspotSchema.post('find', async (docs, next) => {
-  console.log('post find hotspot: ', docs)
   for (let doc of docs) {
     await doc.populate(FIELDS_TO_POPULATE).execPopulate()
   }
   next()
 })
 
-hotspotSchema.post('save', (doc, next) => {
+hotspotSchema.post(/save|findOneAndUpdate/, (doc, next) => {
   doc.populate(FIELDS_TO_POPULATE).execPopulate().then(() =>  next())
 })
+
 
 hotspotSchema.statics.formatWithComments = (hotspot) => {
   console.log('hotspot formatWithComments: ', hotspot)
